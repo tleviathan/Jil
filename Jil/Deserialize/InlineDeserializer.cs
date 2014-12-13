@@ -13,6 +13,7 @@ namespace Jil.Deserialize
 {
     class InlineDeserializer<ForType>
     {
+        public static bool UseFastFloatingPointMethods = true;
         public static bool UseCharArrayOverStringBuilder = true;
         public static bool UseNameAutomata = true;
         public static bool UseNameAutomataForEnums = true;
@@ -60,7 +61,7 @@ namespace Jil.Deserialize
                 involvedTypes.Contains(typeof(string)) ||
                 involvedTypes.Any(t => t.IsUserDefinedType());  // for member names
 
-            var needsCharBuffer = 
+            var needsCharBuffer =
                 hasStringyTypes ||
                 involvedTypes.Any(t => t.IsNumberType()) ||         // we use `ref char[]` for these, so they're kind of stringy
                 (involvedTypes.Contains(typeof(DateTime)) && DateFormat == DateTimeFormat.ISO8601);
@@ -84,11 +85,14 @@ namespace Jil.Deserialize
                 involvedTypes.Contains(typeof(double)) ||
                 involvedTypes.Contains(typeof(decimal)) ||
                 involvedTypes.Any(t => t.IsEnum) ||
-                involvedTypes.Any(t => t.IsUserDefinedType());
+                involvedTypes.Any(t => t.IsUserDefinedType()) ||
+                (!UseNameAutomataForEnums && involvedTypes.Any(t => t.IsEnum));
 
             if (mayNeedStringBuilder)
             {
-                if (!UseCharArrayOverStringBuilder)
+                var gonnaUseAStringBuilderAnyway = (!UseNameAutomataForEnums && involvedTypes.Any(t => t.IsEnum));
+
+                if (!UseCharArrayOverStringBuilder || gonnaUseAStringBuilderAnyway)
                 {
                     Emit.DeclareLocal<StringBuilder>(StringBuilderName);
                 }
@@ -316,48 +320,73 @@ namespace Jil.Deserialize
                 return;
             }
 
-            if (UseCharArrayOverStringBuilder)
+            if (UseFastFloatingPointMethods)
             {
                 LoadCharBufferAddress();                    // TextReader char[]
 
                 if (numberType == typeof(double))
                 {
-                    Emit.Call(Methods.ReadDoubleCharArray);   // double
+                    Emit.Call(Methods.ReadDoubleFast);   // double
                     return;
                 }
 
                 if (numberType == typeof(float))
                 {
-                    Emit.Call(Methods.ReadSingleCharArray);  // float
+                    Emit.Call(Methods.ReadSingleFast);      // float
                     return;
                 }
 
                 if (numberType == typeof(decimal))
                 {
-                    Emit.Call(Methods.ReadDecimalCharArray); // decimal
+                    Emit.Call(Methods.ReadDecimalFast); // decimal
                     return;
                 }
             }
             else
             {
-                LoadStringBuilder();                    // TextReader StringBuilder
-
-                if (numberType == typeof(double))
+                if (UseCharArrayOverStringBuilder)
                 {
-                    Emit.Call(Methods.ReadDouble);   // double
-                    return;
+                    LoadCharBufferAddress();                    // TextReader char[]
+
+                    if (numberType == typeof(double))
+                    {
+                        Emit.Call(Methods.ReadDoubleCharArray);   // double
+                        return;
+                    }
+
+                    if (numberType == typeof(float))
+                    {
+                        Emit.Call(Methods.ReadSingleCharArray);  // float
+                        return;
+                    }
+
+                    if (numberType == typeof(decimal))
+                    {
+                        Emit.Call(Methods.ReadDecimalCharArray); // decimal
+                        return;
+                    }
                 }
-
-                if (numberType == typeof(float))
+                else
                 {
-                    Emit.Call(Methods.ReadSingle);  // float
-                    return;
-                }
+                    LoadStringBuilder();                    // TextReader StringBuilder
 
-                if (numberType == typeof(decimal))
-                {
-                    Emit.Call(Methods.ReadDecimal); // decimal
-                    return;
+                    if (numberType == typeof(double))
+                    {
+                        Emit.Call(Methods.ReadDouble);   // double
+                        return;
+                    }
+
+                    if (numberType == typeof(float))
+                    {
+                        Emit.Call(Methods.ReadSingle);  // float
+                        return;
+                    }
+
+                    if (numberType == typeof(decimal))
+                    {
+                        Emit.Call(Methods.ReadDecimal); // decimal
+                        return;
+                    }
                 }
             }
 
@@ -1181,7 +1210,19 @@ namespace Jil.Deserialize
                     var memberType = member.ReturnType();
 
                     Emit.MarkLabel(label);      // objType(*?)
-                    Build(member.ReturnType()); // objType(*?) memberType
+
+                    var memberAttr = member.GetCustomAttribute<JilDirectiveAttribute>();
+                    if (memberType.IsEnum && memberAttr != null && memberAttr.TreatEnumerationAs != null)
+                    {
+                        var underlyingEnumType = Enum.GetUnderlyingType(memberType);
+
+                        Build(memberAttr.TreatEnumerationAs);   // objType(*?) SerializeEnumerationAsType
+                        Emit.Convert(underlyingEnumType);           // objType(*?) memberType
+                    }
+                    else
+                    {
+                        Build(memberType);          // objType(*?) memberType
+                    }
 
                     if (member is FieldInfo)
                     {
@@ -1350,7 +1391,19 @@ namespace Jil.Deserialize
                     var memberType = member.ReturnType();
 
                     Emit.MarkLabel(label);      // objType(*?)
-                    Build(member.ReturnType()); // objType(*?) memberType
+
+                    var memberAttr = member.GetCustomAttribute<JilDirectiveAttribute>();
+                    if (memberType.IsEnum && memberAttr != null && memberAttr.TreatEnumerationAs != null)
+                    {
+                        var underlyingEnumType = Enum.GetUnderlyingType(memberType);
+
+                        Build(memberAttr.TreatEnumerationAs);   // objType(*?) SerializeEnumerationAsType
+                        Emit.Convert(underlyingEnumType);           // objType(*?) memberType
+                    }
+                    else
+                    {
+                        Build(memberType);          // objType(*?) memberType
+                    }
 
                     if (member is FieldInfo)
                     {

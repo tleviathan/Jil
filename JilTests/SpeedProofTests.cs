@@ -1126,6 +1126,135 @@ namespace JilTests
 
             Assert.IsTrue(automataTime < dictionaryTime, "automataTime = " + automataTime + ", dictionaryTime = " + dictionaryTime);
         }
+
+        [TestMethod]
+        public void UseFastFloatingPointMethods_Float_Common()
+        {
+            Func<TextReader, int, float> fast;
+            Func<TextReader, int, float> normal;
+
+            try
+            {
+                {
+                    InlineDeserializer<float>.UseFastFloatingPointMethods = true;
+                    Exception ignored;
+
+                    // Build the *actual* deserializer method
+                    fast = InlineDeserializerHelper.Build<float>(typeof(Jil.Deserialize.NewtonsoftStyle), dateFormat: Jil.DateTimeFormat.NewtonsoftStyleMillisecondsSinceUnixEpoch, exceptionDuringBuild: out ignored);
+                }
+
+                {
+                    InlineDeserializer<float>.UseFastFloatingPointMethods = false;
+                    Exception ignored;
+
+                    // Build the *actual* deserializer method
+                    normal = InlineDeserializerHelper.Build<float>(typeof(Jil.Deserialize.NewtonsoftStyle), dateFormat: Jil.DateTimeFormat.NewtonsoftStyleMillisecondsSinceUnixEpoch, exceptionDuringBuild: out ignored);
+                }
+            }
+            finally
+            {
+                InlineDeserializer<float>.UseFastFloatingPointMethods = true;
+            }
+
+            var toSerialize = new List<float>();
+            float i = -100.0f;
+            while (i <= 100.0f)
+            {   
+                toSerialize.Add((float)Math.Round(i, 2));
+                i += 0.01f;
+            }
+
+            double fastTime, normalTime;
+            CompareTimes(toSerialize, Jil.Options.Default, fast, normal, out fastTime, out normalTime);
+
+            Assert.IsTrue(fastTime < normalTime, "fastTime = " + fastTime + ", normalTime = " + normalTime);
+        }
+
+        [TestMethod]
+        public void UseFastFloatingPointMethods_Double_Common()
+        {
+            Func<TextReader, int, double> fast;
+            Func<TextReader, int, double> normal;
+
+            try
+            {
+                {
+                    InlineDeserializer<double>.UseFastFloatingPointMethods = true;
+                    Exception ignored;
+
+                    // Build the *actual* deserializer method
+                    fast = InlineDeserializerHelper.Build<double>(typeof(Jil.Deserialize.NewtonsoftStyle), dateFormat: Jil.DateTimeFormat.NewtonsoftStyleMillisecondsSinceUnixEpoch, exceptionDuringBuild: out ignored);
+                }
+
+                {
+                    InlineDeserializer<double>.UseFastFloatingPointMethods = false;
+                    Exception ignored;
+
+                    // Build the *actual* deserializer method
+                    normal = InlineDeserializerHelper.Build<double>(typeof(Jil.Deserialize.NewtonsoftStyle), dateFormat: Jil.DateTimeFormat.NewtonsoftStyleMillisecondsSinceUnixEpoch, exceptionDuringBuild: out ignored);
+                }
+            }
+            finally
+            {
+                InlineDeserializer<double>.UseFastFloatingPointMethods = true;
+            }
+
+            var toSerialize = new List<double>();
+            double i = -100.0;
+            while (i <= 100.0)
+            {
+                toSerialize.Add(Math.Round(i, 2));
+                i += 0.01;
+            }
+
+            double fastTime, normalTime;
+            CompareTimes(toSerialize, Jil.Options.Default, fast, normal, out fastTime, out normalTime);
+
+            Assert.IsTrue(fastTime < normalTime, "fastTime = " + fastTime + ", normalTime = " + normalTime);
+        }
+
+        [TestMethod]
+        public void UseFastFloatingPointMethods_Decimal_Common()
+        {
+            Func<TextReader, int, decimal> fast;
+            Func<TextReader, int, decimal> normal;
+
+            try
+            {
+                {
+                    InlineDeserializer<decimal>.UseFastFloatingPointMethods = true;
+                    Exception ignored;
+
+                    // Build the *actual* deserializer method
+                    fast = InlineDeserializerHelper.Build<decimal>(typeof(Jil.Deserialize.NewtonsoftStyle), dateFormat: Jil.DateTimeFormat.NewtonsoftStyleMillisecondsSinceUnixEpoch, exceptionDuringBuild: out ignored);
+                }
+
+                {
+                    InlineDeserializer<decimal>.UseFastFloatingPointMethods = false;
+                    Exception ignored;
+
+                    // Build the *actual* deserializer method
+                    normal = InlineDeserializerHelper.Build<decimal>(typeof(Jil.Deserialize.NewtonsoftStyle), dateFormat: Jil.DateTimeFormat.NewtonsoftStyleMillisecondsSinceUnixEpoch, exceptionDuringBuild: out ignored);
+                }
+            }
+            finally
+            {
+                InlineDeserializer<decimal>.UseFastFloatingPointMethods = true;
+            }
+
+            var toSerialize = new List<decimal>();
+            decimal i = -100.0m;
+            while (i <= 100.0m)
+            {
+                toSerialize.Add(Math.Round(i, 2));
+                i += 0.01m;
+            }
+
+            double fastTime, normalTime;
+            CompareTimes(toSerialize, Jil.Options.Default, fast, normal, out fastTime, out normalTime);
+
+            Assert.IsTrue(fastTime < normalTime, "fastTime = " + fastTime + ", normalTime = " + normalTime);
+        }
 #endif
     }
 }
